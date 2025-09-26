@@ -86,6 +86,13 @@ def run_simulation():
         accidents, cleared = accident_mdp.step(float(step), [queues], risk_feats)
         if accidents[0] == 1 and acc_mgr.get_acc_flag(0) == 0:
             acc_mgr.trigger_accident(0, float(step))
+            # Log approximate accident location using centroid of stopped vehicle points
+            if pts.shape[0] > 0:
+                cx = float(np.mean(pts[:, 0]))
+                cy = float(np.mean(pts[:, 1]))
+                print(f"[ALERT] Accident detected near ({cx:.1f}, {cy:.1f}) at t={step}s")
+            else:
+                print(f"[ALERT] Accident detected at t={step}s (location unknown)")
         upd = acc_mgr.update(0, float(step))
         if upd and upd[1]:
             for d in ("N","S","E","W"):
