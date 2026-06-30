@@ -1,0 +1,266 @@
+EagleVision Demo Explanation
+============================
+
+This file explains the EagleVision demo scripts, what they do, and how they work.
+
+
+1. What the demo is for
+-----------------------
+
+The demo exists to show a direct comparison between:
+
+- a non-AI traffic controller
+- the trained EagleVision model
+
+The point is not just to say "the model got a better reward."
+The point is to show how traffic behaves differently when the learned controller is in charge,
+and to point to specific signal decisions that changed the traffic trajectory.
+
+
+2. Which files are used
+-----------------------
+
+There are two demo files:
+
+- simulation_demo.py
+- demo2.py
+
+simulation_demo.py:
+- runs the demo in normal command-line mode
+- does not open SUMO GUI unless you explicitly ask for it
+- prints the final comparison and the key model decisions
+
+demo2.py:
+- is the presentation version
+- always runs with SUMO GUI
+- slows the simulation slightly with a small pause so you can watch what is happening
+
+
+3. What the demo actually runs
+------------------------------
+
+The demo runs in two separate passes.
+
+Pass 1: Fixed baseline
+- SUMO is started
+- the traffic lights are controlled by a simple fixed schedule
+- the baseline alternates north-south green and east-west green
+- this controller does not learn and does not adapt intelligently
+
+Pass 2: Model-driven control
+- SUMO is reset again
+- the trained checkpoint is loaded
+- every controlled traffic light gets its own local traffic state
+- the DQN chooses an action for each traffic light
+- the same shared policy is reused across all intersections
+
+Both passes use the same environment design, the same road network, the same route setup,
+the same state extraction logic, and the same reward logic.
+
+That is important because it makes the comparison fair.
+
+
+4. Why there are two demos
+--------------------------
+
+simulation_demo.py is the clean analytical demo.
+It is useful when you want the result quickly and mainly care about the printed comparison.
+
+demo2.py is the visual presentation demo.
+It is useful when you want to open SUMO GUI and actually watch the baseline run first,
+then the model run second.
+
+
+5. Traffic scale and demo length
+--------------------------------
+
+The demo is configured for presentation use.
+
+Default settings:
+- traffic scale = 0.5
+- simulated seconds per pass = 600
+
+This means:
+- the baseline run simulates 600 seconds
+- the model run simulates 600 seconds
+
+The controller acts every 5 simulated seconds, so each pass is about:
+
+600 / 5 = 120 control decisions
+
+This is much shorter than the full training/evaluation setting of 3600 simulated seconds
+and is meant to keep each pass short enough for live demonstration.
+
+
+6. How the model makes decisions
+--------------------------------
+
+For each controlled traffic light, the model receives a 15-feature local state:
+
+- queue length in N, S, E, W
+- speed in N, S, E, W
+- arrival rate in N, S, E, W
+- cluster growth
+- accident flag
+- risk score
+
+The DQN then chooses one of four actions:
+
+- NS_GREEN
+- EW_GREEN
+- EXTEND
+- SHORT_PRI
+
+In the learned-control path, actions 0 and 1 also get a queue-scaled green duration,
+so heavier congestion on an axis can produce a longer green within the allowed bounds.
+
+
+7. What the baseline does instead
+---------------------------------
+
+The fixed baseline does not use the neural network at all.
+
+It simply alternates:
+- north-south green
+- east-west green
+
+with a fixed green duration.
+
+This gives a simple "traditional traffic signal" reference point to compare against.
+
+
+8. What gets measured
+---------------------
+
+During both runs, the demo records:
+
+- global queue
+- global average delay
+- reward
+- accident events
+- active accident steps
+- jam-active steps
+
+It also records local traffic-light-level information such as:
+
+- tls_id
+- chosen action
+- local queue before and after the action
+- risk before and after the action
+- whether an accident was triggered or cleared
+
+
+9. What the final output means
+------------------------------
+
+At the end of both runs, the demo prints a summary table.
+
+That summary compares fixed vs model on:
+
+- control steps
+- average global queue
+- maximum global queue
+- average global delay
+- total reward
+- accident events
+- active accident steps
+- jam steps
+
+After that, the demo prints a "Highest-Impact Model Decisions" section.
+
+This is the most presentation-friendly part of the output.
+
+It highlights the traffic lights and control steps where the model most clearly changed
+the traffic trajectory compared to the fixed baseline.
+
+For each highlighted event, the demo prints:
+
+- the control step
+- simulation time
+- traffic light ID
+- chosen action
+- queue before and after
+- the corresponding fixed-baseline queue
+- risk before and after
+- the corresponding fixed-baseline risk
+- reward
+- model decision margin
+
+
+10. What "model drivers" means
+------------------------------
+
+The demo also prints a short "model drivers" line for important decisions.
+
+This is a lightweight explanation of which input features most strongly influenced
+the model's selected action.
+
+Examples:
+- Q_N
+- Q_S
+- Q_E
+- Q_W
+- risk_score
+- cluster_growth
+
+So instead of only saying:
+"the model chose NS_GREEN"
+
+the demo can also show:
+"the model heavily reacted to north-south queue pressure and rising risk."
+
+This makes the behavior easier to explain during presentation.
+
+
+11. What demo2 does visually
+----------------------------
+
+demo2.py uses the exact same comparison logic, but runs it through SUMO GUI.
+
+This means:
+
+1. the fixed baseline is shown first in the GUI
+2. then the environment resets
+3. the model-driven run is shown second in the GUI
+
+A short pause is added after each control step so the motion is visible to a human viewer.
+
+
+12. Output files
+----------------
+
+simulation_demo.py writes log files like:
+- logs/simulation_demo_fixed_scale_0p5.csv
+- logs/simulation_demo_model_scale_0p5.csv
+
+demo2.py writes log files like:
+- logs/demo2_fixed_scale_0p5.csv
+- logs/demo2_model_scale_0p5.csv
+
+These files can be used later if you want to compare runs, inspect metrics, or build charts.
+
+
+13. Typical usage
+-----------------
+
+Headless command-line demo:
+python simulation_demo.py --scale 0.5 --checkpoint checkpoints/dqn_checkpoint.pt
+
+GUI presentation demo:
+python demo2.py --scale 0.5 --checkpoint checkpoints/dqn_checkpoint.pt
+
+
+14. Practical summary
+---------------------
+
+The EagleVision demo is a two-run comparison:
+
+- run the same traffic scenario with fixed timing
+- run it again with the trained model
+- measure both
+- print the difference
+- point to the signal decisions that mattered most
+
+So the demo is not just "AI vs non-AI" in a vague sense.
+It is a structured, repeatable comparison showing where the learned control policy
+improves queueing, risk, and traffic flow over a traditional fixed controller.

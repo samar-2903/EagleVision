@@ -1,0 +1,8 @@
+torch>=2.0.0
+numpy>=1.24.0
+scikit-learn>=1.2.0   # for OPTICS clustering
+matplotlib>=3.7.0     # for compare_results.py plots
+# traci comes bundled with SUMO — not a pip package
+# Install SUMO: https://sumo.dlr.de/docs/Installing/index.html
+# Then: export SUMO_HOME=/path/to/sumo
+#       export PYTHONPATH=$SUMO_HOME/tools:$PYTHONPATH
